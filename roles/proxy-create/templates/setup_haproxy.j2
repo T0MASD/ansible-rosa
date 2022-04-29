@@ -1,0 +1,38 @@
+hostname haproxy
+
+sudo dnf install -y haproxy
+
+sudo mkdir -pv /etc/haproxy/certs/
+
+cat << EOF | sudo tee /etc/haproxy/certs/haproxy-ca-cert-key.pem
+{{ _ca_cert }}
+{{ _ca_key }}
+EOF
+
+cat << EOF | sudo tee /etc/haproxy/haproxy.cfg
+defaults
+  mode http
+  maxconn 4096
+  option  httplog
+  option  dontlognull
+  option forwardfor
+  option http-server-close
+  retries 3
+  timeout connect 5s
+  timeout client 60s
+  timeout server 60s
+
+frontend http_proxy
+   bind :31280
+   option http_proxy
+   default_backend proxy_server
+
+backend proxy_server
+   option http_proxy
+
+EOF
+
+semanage permissive -a httpd_t
+
+systemctl enable haproxy
+systemctl start haproxy

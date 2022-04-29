@@ -1,0 +1,101 @@
+
+curl -L https://github.com/containous/traefik/releases/download/v1.7.12/traefik_linux-amd64 -o /usr/local/bin/traefik
+chmod +x /usr/local/bin/traefik
+ln -s /usr/local/bin/traefik /usr/bin/traefik
+
+useradd -r -s /bin/false -U -M traefik
+
+mkdir -p /etc/traefik/certs
+
+cat << EOF | sudo tee /etc/traefik/certs/squid-ca-cert-key.pem
+{{ _ca_cert }}
+{{ _ca_key }}
+EOF
+
+cat << 'EOF' | sudo tee /etc/systemd/system/traefik.service
+[Unit]
+Description=Traefik
+Documentation=https://docs.traefik.io
+#After=network-online.target
+#AssertFileIsExecutable=/usr/bin/traefik
+#AssertPathExists=/etc/traefik/traefik.toml
+
+[Service]
+# Run traefik as its own user (create new user with: useradd -r -s /bin/false -U -M traefik)
+User=traefik
+#AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+# configure service behavior
+Type=notify
+ExecStart=/usr/bin/traefik --configFile=/etc/traefik/traefik.toml
+Restart=always
+WatchdogSec=1s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat << 'EOF' | sudo tee /etc/traefik/traefik.toml
+logLevel = "INFO"
+
+# Default entry points
+[entryPoints]
+  [entryPoints.http]
+  address = ":80"
+    [entryPoints.http.redirect]
+    entryPoint = "https"
+    permanent = true
+  [entryPoints.https]
+    address = ":443"
+
+      [entryPoints.https.redirect]
+      regex = "^https://www.(.*)"
+      replacement = "https://$1"
+      permanent = true
+
+      [entryPoints.https.tls]
+        compress = true
+        minVersion = "VersionTLS12"
+        cipherSuites = [
+          "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+          "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+          "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+          "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+        ]
+
+
+# Enable ACME (Let's Encrypt): automatic SSL.
+[acme]
+email = "username@website.com"
+storage = "acme.json"
+entryPoint = "https"
+
+[[acme.domains]]
+  main = "graph.website.com"
+
+[acme.tlsChallenge]
+
+
+# File configuration (frontends and backends)
+[file]
+watch = true
+
+[backends]
+## Note: Here my backend is called "graph"
+ [backends.graph]
+
+ [backends.graph.servers]
+   [backends.graph.servers.server0]
+   url = "http://localhost:8081"
+
+[frontends]
+  [frontends.graph]
+  entryPoints = ["https"]
+  backend = "graph"
+  passHostHeader = true
+  [frontends.graph.routes]
+    [frontends.graph.routes.route0]
+    rule = "Host:graph.website.com"
+EOF
+
+

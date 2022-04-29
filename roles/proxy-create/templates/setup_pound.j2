@@ -1,0 +1,43 @@
+
+hostname pound
+
+dnf install -y rpm-build pcre-devel
+
+
+rpmbuild --rs http://www.invoca.ch/pub/packages/pound/RPMS/ils-9/SRPMS/pound-2.8-5.el9.src.rpm || true
+# rpm package is missing /root/rpmbuild/SOURCES/pound.250.service.in (upstream typo)
+cp -v /root/rpmbuild/SOURCES/pound*service.in /root/rpmbuild/SOURCES/pound.250.service.in
+rpmbuild -bb rpmbuild/SPECS/pound.spec
+dnf install -y rpmbuild/RPMS/x86_64/pound-2*.rpm
+
+mkdir -p /etc/pound/certs
+
+cat << EOF | sudo tee /etc/pound/certs/pound-ca-cert-key.pem
+{{ _ca_cert }}
+{{ _ca_key }}
+EOF
+
+cat << EOF 'EOF' | sudo tee /etc/pound/pound.cfg
+User "pound"
+Group "pound"
+RootJail "/var/empty/pound"
+Control "/run/pound/ctl_socket"
+
+# Main listening ports
+ListenHTTP
+    Address 0.0.0.0
+    Port    31280
+    xHTTP   1
+End
+#ListenHTTPS
+#    Address 0.0.0.0
+#    Port    31281
+#    Cert    "/etc/pound/certs/pound-ca-cert-key.pem"
+#    Disable SSLv3
+#    Ciphers "ALL:!ADH:!EXPORT:!SSLv2:RC4+RSA:+HIGH:+MEDIUM:-LOW"
+#    xHTTP   1
+#End
+EOF
+
+systemctl enable pound
+systemctl start pound

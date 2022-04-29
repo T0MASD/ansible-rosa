@@ -1,0 +1,14 @@
+- hosts:      "localhost"
+  connection: "local"
+  vars:
+    ansible_python_interpreter: ./virtualenv/bin/python
+    proxy_enabled: true
+    vpc_id: vpc-709d7e16
+    subnet_id: subnet-25dd1643
+    proxy_instance_type: t3.small  #m4.large
+    proxy_ami: ami-017e4f12c846e50c2
+    local_cidr_ip: 172.31.0.0/16
+    sg_name: "proxy-sg"
+    key_name: "aws"
+  roles:
+    - name: roles/proxy-create

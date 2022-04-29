@@ -1,0 +1,40 @@
+
+wget https://snapshots.mitmproxy.org/8.0.0/mitmproxy-8.0.0-linux.tar.gz -O /tmp/proxy.tar.gz
+mkdir -p /tmp/mitm
+tar zxvf /tmp/proxy.tar.gz -C /tmp/mitm
+cp /tmp/mitm/mitmdump /usr/local/bin/mitmdump
+chmod +x /usr/local/bin/mitmdump
+
+useradd -r -s /bin/false -U -M -d /home/mitmdump mitmdump
+mkdir -p /home/mitmdump
+chown -R mitmdump:mitmdump /home/mitmdump
+
+mkdir -pv /etc/mitmdump/certs/
+
+cat << EOF | sudo tee /etc/mitmdump/certs/mitmdump-ca-cert-key.pem
+{{ _ca_cert }}
+{{ _ca_key }}
+EOF
+
+cat << 'EOF' | sudo tee  /etc/systemd/system/mitmdump.service
+[Unit]
+Description=mitmdump service
+After=network.target
+
+[Service]
+Type=simple
+User=mitmdump
+ExecStart=/usr/local/bin/mitmdump --listen-port 31280
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+semanage permissive -a httpd_t
+
+systemctl daemon-reload
+systemctl enable mitmdump
+systemctl start mitmdump

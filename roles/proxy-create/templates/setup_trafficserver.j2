@@ -1,0 +1,12 @@
+
+hostname traffic
+
+sudo dnf install -y trafficserver
+
+mkdir -p /etc/traffic/certs
+
+cat << EOF | sudo tee /etc/traffic/certs/traffic-ca-cert-key.pem
+{{ _ca_cert }}
+{{ _ca_key }}
+EOF
+

@@ -39,7 +39,7 @@
     tags:
       Name: "{{ item }}-proxy"
   loop:
-    #  - squid
+     - squid
     #  - mitm
     #  - nginx
-    - pound
+    # - pound
